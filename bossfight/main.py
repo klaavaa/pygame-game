@@ -8,6 +8,7 @@ from useful_functions import get_tilemap_pos, get_world_pos, TW, TH
 import math
 from tilemap_system.tilemap import *
 import os
+import sys
 import math
 from boss_system.boss import Boss
 from ui import *
@@ -26,21 +27,21 @@ cam = Camera(64, 64)
 
 def loadlevel(n):
     global collision_map, objects
-    with open(f'level{n}.txt', 'rb') as lvl:
+    with open(os.path.join(sys.path[0], f'level{n}.txt'), 'rb') as lvl:
         level = pickle.load(lvl)
 
-    tm = Tilemap(pygame.image.load(os.path.join('images', 'spritesheet.png')))
+    tm = Tilemap(pygame.image.load(os.path.join(sys.path[0], 'images', 'spritesheet.png')))
     objects, collision_objects = tm.create_map(level)
     objects = tm.up(objects)
     collision_map = tm.create_collision_array(collision_objects)
 
 loadlevel(1)
 
-blink = pygame.image.load('images/blink.png')
-freeze = pygame.image.load('images/frost_nova.png')
-frostfirebolt = pygame.image.load('images/frostfirebolt.png')
-pyroblast = pygame.image.load('images/pyroblast.png')
-fire_shield = pygame.image.load('images/fire_shield.png')
+blink = pygame.image.load(os.path.join(sys.path[0], 'images/blink.png'))
+freeze = pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png'))
+frostfirebolt = pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png'))
+pyroblast = pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png'))
+fire_shield = pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png'))
 ui = UI()
 
 screen_rect = pygame.Rect(-100, -100, 1100, 1100)
@@ -320,10 +321,10 @@ def boss_fight_game():
 
     #  print(startpos)
 
-    ui.set_icon(400, 720, 64, 64, pygame.image.load('images/blink.png'), c.skillcd, c.blinkcd, c.blinkcharge)
-    ui.set_icon(320, 720, 64, 64, pygame.image.load('images/frostfirebolt.png'), c.skillcd, None, None)
-    ui.set_icon(480, 720, 64, 64, pygame.image.load('images/frost_nova.png'), c.skillcd, c.freezecd, None)
-    ui.set_icon(540, 720, 64, 64, pygame.image.load('images/pyroblast.png'), None, c.pyrocd, None)
+    ui.set_icon(400, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/blink.png')), c.skillcd, c.blinkcd, c.blinkcharge)
+    ui.set_icon(320, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png')), c.skillcd, None, None)
+    ui.set_icon(480, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png')), c.skillcd, c.freezecd, None)
+    ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')), None, c.pyrocd, None)
 
     while run:
 
@@ -374,11 +375,11 @@ def arena_game():
     c.load_sprites()
     c2.load_sprites()
 
-    ui.set_icon(300, 720, 64, 64, pygame.image.load('images/frostfirebolt.png'), c.skillcd, None, None)
-    ui.set_icon(380, 720, 64, 64, pygame.image.load('images/blink.png'), c.skillcd, c.blinkcd, c.blinkcharge)
-    ui.set_icon(460, 720, 64, 64, pygame.image.load('images/frost_nova.png'), c.skillcd, c.freezecd, None)
-    ui.set_icon(540, 720, 64, 64, pygame.image.load('images/pyroblast.png'), None, c.pyrocd, None)
-    ui.set_icon(620, 720, 64, 64, pygame.image.load('images/fire_shield.png'), c.skillcd, c.firecd, None)
+    ui.set_icon(300, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png')), c.skillcd, None, None)
+    ui.set_icon(380, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/blink.png')), c.skillcd, c.blinkcd, c.blinkcharge)
+    ui.set_icon(460, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png')), c.skillcd, c.freezecd, None)
+    ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')), None, c.pyrocd, None)
+    ui.set_icon(620, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png')), c.skillcd, c.firecd, None)
 
     while run:
 
@@ -434,8 +435,10 @@ def arena_game():
 
 def main():
 
-    buttons = [Button(200, 600, 400, 200, pygame.image.load('images/buttons/multiplayer_button.png'), pygame.image.load('images/buttons/multiplayer_button_highlited.png'), "multiplayer"),
-               Button(200, 300, 400, 200, pygame.image.load('images/buttons/boss_fight_button.png'), pygame.image.load('images/buttons/boss_fight_button_highlited.png'), "arena")]
+    buttons = [Button(200, 600, 400, 200, pygame.image.load(os.path.join(sys.path[0], 'images/buttons/multiplayer_button.png'))
+                      , pygame.image.load(os.path.join(sys.path[0], 'images/buttons/multiplayer_button_highlited.png')), "multiplayer"),
+               Button(200, 300, 400, 200, pygame.image.load(os.path.join(sys.path[0],'images/buttons/boss_fight_button.png')),
+                      pygame.image.load(os.path.join(sys.path[0], 'images/buttons/boss_fight_button_highlited.png')), "arena")]
     run = True
     while run:
         win.fill(0)
