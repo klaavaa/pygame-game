@@ -21,23 +21,24 @@ print("Waiting for a connection, Server Started")
 
 players = [DummyCharacter(256, 256, 100, 100, 0, 100, [], States.IDLE, False), DummyCharacter(512, 512, 100, 100, 0, 100, [], States.IDLE, False)]
 
+connected = [False, False]
 def player_reset(index):
     players[index] = DummyCharacter(256, 256, 100, 100, 0, 100, [], States.IDLE, False)
 
 def threaded_client(conn, player):
     global current_player
     conn.send(pickle.dumps([players[player], players[(player + 1) % 2]]))
-    reply = ""
+
+    connected[player] = True
+    while not connected[(player + 1) % 2]:
+        conn.send(pickle.dumps(False))
+        conn.recv(2048)
+
+    conn.send(pickle.dumps(True))
+    conn.recv(2048)
+
     while True:
         try:
-           # data = pickle.loads(conn.recv(2048))
-           # if type(data) == Character:
-           #     players[player] = data
-#
-           #     if not data:
-           #         print("Disconnected")
-           #         break
-           #     else:
             conn.sendall(pickle.dumps([players[player].hp, players[player].absorb_shield, players[player].speed]))
             data = pickle.loads(conn.recv(2048))
             players[player] = data
@@ -65,6 +66,7 @@ def threaded_client(conn, player):
     print("Lost connection")
     conn.close()
 
+    connected[player] = False
     current_player = player
     player_reset(player)
 

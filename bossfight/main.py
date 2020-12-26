@@ -381,8 +381,20 @@ def arena_game():
     ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')), None, c.pyrocd, None)
     ui.set_icon(620, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png')), c.skillcd, c.firecd, None)
 
-    while run:
+    while not n.request():
+        font = pygame.font.SysFont('arial', 30)
+        text = font.render('Waiting for another player', 1, (255, 255, 255))
+        win.blit(text, (350, 350))
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
 
+        n.send(True)
+
+    n.send(True)
+
+    while run:
         c.hp, c.absorb_shield, c.speed = n.request()
         n.send(c.get_dummy())
         c2.update_from_dummy(n.request())
@@ -467,3 +479,4 @@ if __name__ == '__main__':
     main()
 
 pygame.quit()
+exit()
