@@ -387,8 +387,6 @@ def arena_game():
         c2.update_from_dummy(n.request())
         delta_absorb_shield1 = c.absorb_shield
         delta_absorb_shield2 = c2.absorb_shield
-        print(c2.r.x, c2.r.y)
-#        print(c2.absorb_shield)
 
         mposX, mposY = pygame.mouse.get_pos()
         mposX, mposY = get_tilemap_pos(mposX + cam.x, mposY + cam.y)
@@ -435,20 +433,33 @@ def arena_game():
         n.send(delta_absorb_shield1)
 
 def main():
+
+    buttons = [Button(200, 600, 400, 200, pygame.image.load('images/buttons/multiplayer_button.png'), pygame.image.load('images/buttons/multiplayer_button_highlited.png'), "multiplayer"),
+               Button(200, 300, 400, 200, pygame.image.load('images/buttons/boss_fight_button.png'), pygame.image.load('images/buttons/boss_fight_button_highlited.png'), "arena")]
     run = True
     while run:
+        win.fill(0)
+        mx, my = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    boss_fight_game()
-                    run = False
-                if event.button == 3:
-                    arena_game()
-                    run = False
+                    for button in buttons:
+                        if button.check_collsion(mx, my):
+                            if button.id == "bossfight":
+                                boss_fight_game()
+                            elif button.id == "multiplayer":
+                                arena_game()
+                            run = False
 
+
+        for button in buttons:
+            button.update(mx, my)
+            button.draw(win)
+
+        pygame.display.update()
 if __name__ == '__main__':
     main()
 
