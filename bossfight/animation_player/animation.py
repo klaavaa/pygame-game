@@ -9,6 +9,7 @@ class Animation:
         self.index = i1
         self.first_index = i1
 
+
         self.last_index = spritesheet.cell_count - 1
 
         if i2 is not None:

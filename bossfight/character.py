@@ -13,7 +13,7 @@ class charge:
         self.n = n
 
 class DummyCharacter:
-    def __init__(self, x, y, OriginalHP, hp, absorb_shield, speed, projectiles, state):
+    def __init__(self, x, y, OriginalHP, hp, absorb_shield, speed, projectiles, state, casting):
         self.x = x
         self.y = y
         self.OriginalHP = OriginalHP
@@ -22,6 +22,7 @@ class DummyCharacter:
         self.speed = speed
         self.projectiles = projectiles
         self.state = state
+        self.casting = casting
 
 class Character:
     def __init__(self, dummy):
@@ -76,9 +77,10 @@ class Character:
         self.speed = dummy.speed
         self.projectiles = dummy.projectiles
         self.state = dummy.state
+        self.casting = dummy.casting
 
     def get_dummy(self):
-        return DummyCharacter(self.x, self.y, self.OriginalHP, self.hp, self.absorb_shield, self.speed, self.projectiles, self.state)
+        return DummyCharacter(self.x, self.y, self.OriginalHP, self.hp, self.absorb_shield, self.speed, self.projectiles, self.state, self.casting)
 
     def load_sprites(self):
         self.ch_ss = pygame.image.load('animations/player_sheet.png')
