@@ -19,10 +19,10 @@ except socket.error as e:
 s.listen(2)
 print("Waiting for a connection, Server Started")
 
-players = [DummyCharacter(256, 256, 100, 100, 0, 100, [], States.IDLE), DummyCharacter(512, 512, 100, 100, 0, 100, [], States.IDLE)]
+players = [DummyCharacter(256, 256, 100, 100, 0, 100, [], States.IDLE, False), DummyCharacter(512, 512, 100, 100, 0, 100, [], States.IDLE, False)]
 
 def player_reset(index):
-    players[index] = DummyCharacter(256, 256, 100, 100, 0, 100, [], States.IDLE)
+    players[index] = DummyCharacter(256, 256, 100, 100, 0, 100, [], States.IDLE, False)
 
 def threaded_client(conn, player):
     global current_player
