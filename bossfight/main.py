@@ -14,6 +14,7 @@ from boss_system.boss import Boss
 from ui import *
 import random
 
+
 from networking.network import Network
 
 pygame.init()
@@ -232,7 +233,10 @@ def update_boss(dt, c, boss):
 
     cam.update(c, SW, SH)
 
-def update_arena(dt, c, c2):
+
+
+
+def update_arena(dt, c, c2, dealt_skills):
     global globalcdsurface, globaly
     keys = pygame.key.get_pressed()
     dx, dy = c.x, c.y
@@ -262,7 +266,8 @@ def update_arena(dt, c, c2):
 
         if check_collision(projectile, c2.x, c2.y, c2.width, c2.height):
             c.projectiles.pop(index)
-            c2.deal_damage(projectile)
+            #c2.deal_damage(projectile)
+            dealt_skills.append(projectile)
 
 
 
@@ -315,7 +320,7 @@ def update_arena(dt, c, c2):
 def boss_fight_game():
     run = True
     get_ticks_last_frame = pygame.time.get_ticks()
-    c = Character(DummyCharacter(128, 128))
+    c = Character(DummyCharacter(128, 128, 100, 100, 0, 100, [], 100, False))
     #c.load_sprites()
     boss = Boss(512, 512)
 
@@ -395,14 +400,20 @@ def arena_game():
     n.send(True)
 
     while run:
-        c.hp, c.absorb_shield, c.speed = n.request()
+
+        dealt_skills = []
+
+        dummy, c.hp, c.absorb_shield, c.speed = n.request()
+       # c.deal_damage(dmg)
+
         n.send(c.get_dummy())
-        c2.update_from_dummy(n.request())
-        delta_absorb_shield1 = c.absorb_shield
-        delta_absorb_shield2 = c2.absorb_shield
+        c2.update_from_dummy(dummy)
 
         mposX, mposY = pygame.mouse.get_pos()
         mposX, mposY = get_tilemap_pos(mposX + cam.x, mposY + cam.y)
+
+        das = c.absorb_shield
+
 
 
         for event in pygame.event.get():
@@ -437,13 +448,11 @@ def arena_game():
         get_ticks_last_frame = t
         pygame.display.set_caption(f'{int(1/dt)}, {dt}ms delay')
 
-        update_arena(dt, c, c2)
+        update_arena(dt, c, c2, dealt_skills)
         draw(c, c2)
 
-        delta_absorb_shield2 = c2.absorb_shield - delta_absorb_shield2
-        n.send([c2.hp, c2.speed, delta_absorb_shield2])
-        delta_absorb_shield1 = c.absorb_shield - delta_absorb_shield1
-        n.send(delta_absorb_shield1)
+        n.send([dealt_skills, c2.speed, c.absorb_shield - das])
+
 
 def main():
 
@@ -479,4 +488,4 @@ if __name__ == '__main__':
     main()
 
 pygame.quit()
-exit()
+sys.exit()
