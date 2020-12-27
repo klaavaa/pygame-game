@@ -1,14 +1,12 @@
+import pickle
 import socket
 from _thread import *
-import sys
-import pickle
 from character import *
-from animation_player.animationManager import AnimationManager
-
-
+from states import *
+import sys
 server = "192.168.0.11"
-port = 5555
-
+port = 12345
+pygame.init()
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 try:
@@ -32,38 +30,39 @@ def threaded_client(conn, player):
     connected[player] = True
     while not connected[(player + 1) % 2]:
         conn.send(pickle.dumps(False))
-        conn.recv(2048)
+        conn.recv(8)
 
     conn.send(pickle.dumps(True))
-    conn.recv(2048)
+    conn.recv(8)
 
     while True:
         try:
-            conn.sendall(pickle.dumps([players[player].hp, players[player].absorb_shield, players[player].speed]))
-            data = pickle.loads(conn.recv(2048))
+
+            conn.sendall(pickle.dumps([players[(player + 1) % 2], players[player].hp, players[player].absorb_shield, players[player].speed]))
+            data = pickle.loads(conn.recv(1024))
             players[player] = data
 
-            reply = players[(player + 1) % 2]
                 #print(f'Received: {data}')
                 #print(f'Sending: {reply}')
-            conn.sendall(pickle.dumps(reply))
-
-            data = pickle.loads(conn.recv(2048))
-
-            if type(data) == list:
-                #print(data)
-                players[(player + 1) % 2].hp = data[0]
-                players[(player + 1) % 2].speed = data[1]
-                players[(player + 1) % 2].absorb_shield += data[2]
 
 
-            players[player].absorb_shield += pickle.loads(conn.recv(2048))
+            data = pickle.loads(conn.recv(512))
+
+
+            for i in data[0]:
+                players[(player + 1) % 2].deal_damage(i)
+            players[(player + 1) % 2].speed = data[1]
+            players[player].absorb_shield += data[2]
+
+
+
+
 
 
         except:
             break
 
-    print("Lost connection")
+    print("Player disconnected")
     conn.close()
 
     connected[player] = False
