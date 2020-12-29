@@ -4,7 +4,7 @@ from timer import *
 from skill import *
 import pickle
 from states import *
-from useful_functions import get_tilemap_pos, get_world_pos, TW, TH
+from useful_functions import get_tilemap_pos, get_world_pos, TW, TH, rng
 import math
 from tilemap_system.tilemap import *
 import os
@@ -13,8 +13,7 @@ import math
 from boss_system.boss import Boss
 from ui import *
 import random
-
-
+from world import World
 from networking.network import Network
 
 pygame.init()
@@ -26,28 +25,11 @@ fps = 144
 
 cam = Camera(64, 64)
 
-def loadlevel(n):
-    global collision_map, objects
-    with open(os.path.join(sys.path[0], f'level{n}.txt'), 'rb') as lvl:
-        level = pickle.load(lvl)
-
-    tm = Tilemap(pygame.image.load(os.path.join(sys.path[0], 'images', 'spritesheet.png')))
-    objects, collision_objects = tm.create_map(level)
-    objects = tm.up(objects)
-    collision_map = tm.create_collision_array(collision_objects)
-
-loadlevel(1)
-
-blink = pygame.image.load(os.path.join(sys.path[0], 'images/blink.png'))
-freeze = pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png'))
-frostfirebolt = pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png'))
-pyroblast = pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png'))
-fire_shield = pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png'))
+world = World()
+world.load_level(1)
 ui = UI()
 
 screen_rect = pygame.Rect(-100, -100, 1100, 1100)
-
-# x, y, w, h, load image, global cd, skillcd=None, charge=None
 
 def check_collision(c, x, y, w, h):
 
@@ -69,10 +51,10 @@ def check_collision(c, x, y, w, h):
 
 def circle_collision_rect(c):
     mx, my = get_tilemap_pos(c.x, c.y)
-    if mx - 1 >= 0 and mx + 2 <= len(collision_map[0]) and my - 1 >= 0 and my + 2 <= len(collision_map):
+    if mx - 1 >= 0 and mx + 2 <= len(world.collision_map[0]) and my - 1 >= 0 and my + 2 <= len(world.collision_map):
         for i in range(my - 1, my + 2):
             for j in range(mx - 1, mx + 2):
-                if collision_map[i][j] == 1:
+                if world.collision_map[i][j] == 1:
                     x, y = get_world_pos(j, i)
                     if check_collision(c, x, y, TW, TH):
                         return True
@@ -82,7 +64,7 @@ def draw(c, c2=None, boss=None):
 
     win.fill(0)
 
-    for obj in objects:
+    for obj in world.objects:
         if screen_rect.contains(pygame.Rect(obj.x * TW - cam.x, TH + obj.y * TH - cam.y, obj.width, obj.height)):
             obj.draw(win, cam.x, cam.y)
 
@@ -99,10 +81,10 @@ def draw(c, c2=None, boss=None):
 
 def tilemap_collision(collision_map, o):
     mx, my = get_tilemap_pos(o.x, o.y)
-    if mx - 1 >= 0 and mx + 2 <= len(collision_map[0]) and my - 1 >= 0 and my + 2 <= len(collision_map):
+    if mx - 1 >= 0 and mx + 2 <= len(world.collision_map[0]) and my - 1 >= 0 and my + 2 <= len(world.collision_map):
         for i in range(my - 1, my + 2):
             for j in range(mx - 1, mx + 2):
-                if collision_map[i][j] == 1:
+                if world.collision_map[i][j] == 1:
                     x, y = get_world_pos(j, i)
                     ox = o.x < x + TW and o.x + o.width > x
                     oy = o.y < y + TH and o.y + o.height > y
@@ -119,120 +101,140 @@ def rect_collision_detection(x1, y1, w1, h1, x2, y2, w2, h2):
 
 def update_boss(dt, c, boss):
     global globalcdsurface, globaly
-    keys = pygame.key.get_pressed()
-    dx, dy = c.x, c.y
-    mx, my = pygame.mouse.get_pos()
-    angle = -math.atan2(my - (c.y + c.height/2 - cam.y), mx - (c.x + c.width/2 - cam.x))
-    c.angle = angle
-    c.state = States.IDLE
-    c.am.remove_all()
-    c.update(dt)
+    if c.hp > 0 and boss.hp > 0:
+        keys = pygame.key.get_pressed()
+        dx, dy = c.x, c.y
+        mx, my = pygame.mouse.get_pos()
+        angle = -math.atan2(my - (c.y + c.height/2 - cam.y), mx - (c.x + c.width/2 - cam.x))
+        c.angle = angle
+        c.state = States.IDLE
+        c.am.remove_all()
+        c.update(dt)
 
 
-    #mx, my = get_tilemap_pos(mx + cam.x, my + cam.y)
-    cx, cy = get_tilemap_pos(c.x, c.y)
-   #bx, by = get_tilemap_pos(boss.x, boss.y)
-  # pygame.display.set_caption(f'mouse: ({mx, my}), player: ({cx, cy}), boss: ({bx, by}')
+        mx, my = get_tilemap_pos(mx + cam.x, my + cam.y)
+        cx, cy = get_tilemap_pos(c.x, c.y)
+        bx, by = get_tilemap_pos(boss.x, boss.y)
+        pygame.display.set_caption(f'mouse: ({mx, my}), player: ({cx, cy}), boss: ({bx, by}')
 
-    boss.update(dt)
+        boss.update(dt)
 
-    if keys[pygame.K_SPACE]:
-        c.cast(Fireball(c.x + c.width / 2, c.y + c.height / 2, c.angle))
+        if keys[pygame.K_SPACE]:
+            c.cast(Fireball(c.x + c.width / 2, c.y + c.height / 2, c.angle))
 
-    for index, projectile in sorted(enumerate(c.projectiles), reverse=True):
-       #if projectile.x <= 0 + cam.x or projectile.x >= SW + cam.x or projectile.y >= SH + cam.y or projectile.y <= 0 + cam.y:
-       #    c.projectiles.pop(index)
-       #    continue
+        for index, projectile in sorted(enumerate(c.projectiles), reverse=True):
+           #if projectile.x <= 0 + cam.x or projectile.x >= SW + cam.x or projectile.y >= SH + cam.y or projectile.y <= 0 + cam.y:
+           #    c.projectiles.pop(index)
+           #    continue
 
-        if circle_collision_rect(projectile):
-            c.projectiles.pop(index)
-            continue
+            if circle_collision_rect(projectile):
+                c.projectiles.pop(index)
+                continue
 
-        if check_collision(projectile, boss.x, boss.y, boss.width, boss.height):
-            c.projectiles.pop(index)
-            boss.hp -= 20
-            if boss.hp < 0:
-                boss.hp = 0
-                print("boss dead")
+            if check_collision(projectile, boss.x, boss.y, boss.width, boss.height):
+                c.projectiles.pop(index)
+                if type(projectile) == Pyroblast:
+                    for debuff in boss.debuffs:
+                        if type(debuff) == Burn:
+                            projectile.damage *= 2
 
-    for index, projectile in sorted(enumerate(boss.projectile_list), reverse=True):
-       #if projectile.x <= 0 + cam.x or projectile.x >= SW + cam.x or projectile.y >= SH + cam.y or projectile.y <= 0 + cam.y:
-       #    boss.projectile_list.pop(index)
-       #    continue
-        if projectile.x < -200 or projectile.x > 2000 or projectile.y < -200 or projectile.y > 2000:
-            boss.projectile_list.pop(index)
-            continue
-        for circle in projectile.collision_circles:
-           #if circle_collision_rect(circle):
+                boss.deal_damage(projectile)
+                if rng(10):
+                    boss.debuffs.append(Burn(boss))
+
+
+
+        for index, projectile in sorted(enumerate(boss.projectile_list), reverse=True):
+           #if projectile.x <= 0 + cam.x or projectile.x >= SW + cam.x or projectile.y >= SH + cam.y or projectile.y <= 0 + cam.y:
            #    boss.projectile_list.pop(index)
-           #    break
-            if check_collision(circle, c.x, c.y, c.width, c.height):
+           #    continue
+            if projectile.x < -200 or projectile.x > 2000 or projectile.y < -200 or projectile.y > 2000:
                 boss.projectile_list.pop(index)
-                c.hp -= 20
-                if c.hp < 0:
-                    c.hp = 0
+                continue
 
-                break
+            if type(projectile) == SwordProjectile:
+                for circle in projectile.collision_circles:
+                   #if circle_collision_rect(circle):
+                   #    boss.projectile_list.pop(index)
+                   #    break
+                    if check_collision(circle, c.x, c.y, c.width, c.height):
 
-#    print(c.hp)
-    if keys[pygame.K_w]:
-        c.y -= c.speed * dt
-        c.state = States.UP
-        c.casting = None
+                        boss.projectile_list.pop(index)
+                        c.deal_damage(projectile)
+                        break
 
-    if keys[pygame.K_s]:
-        c.y += c.speed * dt
-        c.state = States.DOWN
-        c.casting = None
+            elif type(projectile) == PoisonBubble:
+                if not projectile.online:
+                    projectile.update_online_timer(dt)
+                else:
+                    if check_collision(projectile, c.x, c.y, c.width, c.height):
+                        projectile.hit(c)
 
-    collision = tilemap_collision(collision_map, c)
-    if collision:
-        c.y = dy
-
-    if keys[pygame.K_d]:
-        c.x += c.speed * dt
-        c.state = States.RIGHT
-        c.casting = None
-
-    if keys[pygame.K_a]:
-        c.x -= c.speed * dt
-        c.state = States.LEFT
-        c.casting = None
-    collision = tilemap_collision(collision_map, c)
-    if collision:
-        c.x = dx
-
-    if get_tilemap_pos(dx, dy) != get_tilemap_pos(c.x, c.y):
-        boss.pf.stop = True
-
-    if boss.pf.path is None:
-        boss.pf.pathfind(cx, cy, collision_map)
+                    if projectile.target is not None:
+                        if projectile.update(dt):
+                            boss.projectile_list.pop(index)
 
 
-    deltaX, deltaY = abs(boss.x + (boss.width / 2) - c.x + (c.width / 2)), abs(boss.y + (boss.height / 2) - c.y + (c.height / 2))
-    deltaPos = math.sqrt(deltaX**2 + deltaY**2)
-    multiplier = deltaPos / (400 * dt)
+        if keys[pygame.K_w]:
+            c.y -= c.speed * dt
+            c.state = States.UP
+            c.casting = None
 
-    x, y = c.x + (c.x - dx) * multiplier, c.y + (c.y - dy) * multiplier
+        if keys[pygame.K_s]:
+            c.y += c.speed * dt
+            c.state = States.DOWN
+            c.casting = None
 
-    # BOSS SWORD CAST #
+        collision = tilemap_collision(world.collision_map, c)
+        if collision:
+            c.y = dy
 
-    if random.randint(0, 100) > 80:
-        bossangle = -math.atan2((y + c.height / 2)  - (boss.y + boss.height / 2), (x + c.width / 2) - (boss.x + boss.width / 2))
-        boss.cast_sword(bossangle)
+        if keys[pygame.K_d]:
+            c.x += c.speed * dt
+            c.state = States.RIGHT
+            c.casting = None
+
+        if keys[pygame.K_a]:
+            c.x -= c.speed * dt
+            c.state = States.LEFT
+            c.casting = None
+        collision = tilemap_collision(world.collision_map, c)
+        if collision:
+            c.x = dx
+
+        if get_tilemap_pos(dx, dy) != get_tilemap_pos(c.x, c.y):
+            boss.pf.stop = True
+
+        if boss.pf.path is None:
+            boss.pf.pathfind(cx, cy, world.collision_map)
+
+
+        deltaX, deltaY = abs(boss.x + (boss.width / 2) - c.x + (c.width / 2)), abs(boss.y + (boss.height / 2) - c.y + (c.height / 2))
+        deltaPos = math.sqrt(deltaX**2 + deltaY**2)
+        multiplier = deltaPos / (400 * dt)
+
+        x, y = c.x + (c.x - dx) * multiplier, c.y + (c.y - dy) * multiplier
+
+        # BOSS SWORD CAST #
+
+
+        if rng(20):
+            bossangle = -math.atan2((y + c.height / 2)  - (boss.y + boss.height / 2), (x + c.width / 2) - (boss.x + boss.width / 2))
+        else:
+            bossangle = -math.atan2((c.y + c.height / 2) - (boss.y + boss.height / 2), (c.x + c.width / 2) - (boss.x + boss.width / 2))
+
+        boss.attack(bossangle, c.x, c.y)
+
+        if c.casting:
+            c.casting.x = c.x + c.width / 2
+            c.casting.y = c.y + c.height / 2
+            c.casting.angle = angle
+            c.casting.calc_angle()
+
+        cam.update(c, SW, SH)
+
     else:
-        bossangle = -math.atan2((c.y + c.height / 2) - (boss.y + boss.height / 2), (c.x + c.width / 2) - (boss.x + boss.width / 2))
-        boss.cast_sword(bossangle)
-
-
-    if c.casting:
-        c.casting.x = c.x + c.width / 2
-        c.casting.y = c.y + c.height / 2
-        c.casting.angle = angle
-        c.casting.calc_angle()
-
-    cam.update(c, SW, SH)
-
+        print(f'Character hp: {c.hp}, boss hp: {boss.hp}')
 
 
 
@@ -286,7 +288,7 @@ def update_arena(dt, c, c2, dealt_skills):
             c.casting = None
             c.pyrocd.reset_and_pause()
 
-    collision = tilemap_collision(collision_map, c)
+    collision = tilemap_collision(world.collision_map, c)
     if collision:
         c.y = dy
 
@@ -304,7 +306,7 @@ def update_arena(dt, c, c2, dealt_skills):
             c.casting = None
             c.pyrocd.reset_and_pause()
 
-    collision = tilemap_collision(collision_map, c)
+    collision = tilemap_collision(world.collision_map, c)
     if collision:
         c.x = dx
 
@@ -320,16 +322,17 @@ def update_arena(dt, c, c2, dealt_skills):
 def boss_fight_game():
     run = True
     get_ticks_last_frame = pygame.time.get_ticks()
-    c = Character(DummyCharacter(128, 128, 100, 100, 0, 100, [], 100, False))
-    #c.load_sprites()
-    boss = Boss(512, 512)
+    c = Character(DummyCharacter(256, 256, 100, 100, 0, 100, [], 100, False))
+    c.load_sprites()
 
-    #  print(startpos)
+    boss = Boss(1024, 1024)
 
-    ui.set_icon(400, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/blink.png')), c.skillcd, c.blinkcd, c.blinkcharge)
-    ui.set_icon(320, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png')), c.skillcd, None, None)
-    ui.set_icon(480, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png')), c.skillcd, c.freezecd, None)
-    ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')), None, c.pyrocd, None)
+    ui.set_icon(300, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png')).convert(), c.skillcd, None, None)
+    ui.set_icon(380, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/blink.png')).convert(), c.skillcd, c.blinkcd, c.blinkcharge)
+    ui.set_icon(460, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png')).convert(), c.skillcd, c.freezecd, None)
+    ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')).convert(), None, c.pyrocd, None)
+    ui.set_icon(620, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png')).convert(), c.skillcd, c.firecd, None)
+
 
     while run:
 
@@ -346,14 +349,17 @@ def boss_fight_game():
                     c.casting = None
 
                 if event.key == pygame.K_r:
-                    c.blink()
+                    c.blink(world.collision_objects)
 
                 if event.key == pygame.K_3:
-                    c.freeze(collision_map, boss)
+                    c.freeze(world.collision_map, boss)
                     c.casting = None
 
                 if event.key == pygame.K_4:
                     c.cast_cd(Pyroblast(c.x + c.width / 2, c.y + c.height / 2, c.angle))
+
+                if event.key == pygame.K_q:
+                    c.fire_shield()
 
             # elif event.type == pygame.MOUSEBUTTONDOWN:
             #    if event.button == 1:
@@ -370,6 +376,7 @@ def boss_fight_game():
         draw(c, boss=boss)
 
 
+
 def arena_game():
 
     run = True
@@ -380,11 +387,11 @@ def arena_game():
     c.load_sprites()
     c2.load_sprites()
 
-    ui.set_icon(300, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png')), c.skillcd, None, None)
-    ui.set_icon(380, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/blink.png')), c.skillcd, c.blinkcd, c.blinkcharge)
-    ui.set_icon(460, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png')), c.skillcd, c.freezecd, None)
-    ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')), None, c.pyrocd, None)
-    ui.set_icon(620, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png')), c.skillcd, c.firecd, None)
+    ui.set_icon(300, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frostfirebolt.png')).convert(), c.skillcd, None, None)
+    ui.set_icon(380, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/blink.png')).convert(), c.skillcd, c.blinkcd, c.blinkcharge)
+    ui.set_icon(460, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/frost_nova.png')).convert(), c.skillcd, c.freezecd, None)
+    ui.set_icon(540, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/pyroblast.png')).convert(), None, c.pyrocd, None)
+    ui.set_icon(620, 720, 64, 64, pygame.image.load(os.path.join(sys.path[0], 'images/fire_shield.png')).convert(), c.skillcd, c.firecd, None)
 
     while not n.request():
         font = pygame.font.SysFont('arial', 30)
@@ -398,6 +405,8 @@ def arena_game():
         n.send(True)
 
     n.send(True)
+
+
 
     while run:
 
@@ -428,10 +437,10 @@ def arena_game():
                         c.pyrocd.reset_and_pause()
 
                 if event.key == pygame.K_r:
-                    c.blink()
+                    c.blink(world.collision_objects)
 
                 if event.key == pygame.K_3:
-                    c.freeze(collision_map, c2)
+                    c.freeze(world.collision_map, c2)
                     if c.casting:
                         c.casting = None
                         c.pyrocd.reset_and_pause()
@@ -451,15 +460,16 @@ def arena_game():
         update_arena(dt, c, c2, dealt_skills)
         draw(c, c2)
 
+
         n.send([dealt_skills, c2.speed, c.absorb_shield - das])
 
 
 def main():
 
-    buttons = [Button(200, 600, 400, 200, pygame.image.load(os.path.join(sys.path[0], 'images/buttons/multiplayer_button.png'))
-                      , pygame.image.load(os.path.join(sys.path[0], 'images/buttons/multiplayer_button_highlited.png')), "multiplayer"),
-               Button(200, 300, 400, 200, pygame.image.load(os.path.join(sys.path[0],'images/buttons/boss_fight_button.png')),
-                      pygame.image.load(os.path.join(sys.path[0], 'images/buttons/boss_fight_button_highlited.png')), "arena")]
+    buttons = [Button(200, 600, 400, 200, pygame.image.load(os.path.join(sys.path[0], 'images/buttons/multiplayer_button.png')).convert()
+                      , pygame.image.load(os.path.join(sys.path[0], 'images/buttons/multiplayer_button_highlited.png')).convert(), "multiplayer"),
+               Button(200, 300, 400, 200, pygame.image.load(os.path.join(sys.path[0],'images/buttons/boss_fight_button.png')).convert(),
+                      pygame.image.load(os.path.join(sys.path[0], 'images/buttons/boss_fight_button_highlited.png')).convert(), "bossfight")]
     run = True
     while run:
         win.fill(0)
