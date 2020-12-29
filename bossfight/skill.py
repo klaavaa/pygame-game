@@ -1,5 +1,6 @@
 import math, pygame
 from timer import Timer
+from useful_functions import *
 class Fireball:
     def __init__(self, x, y, angle):
         self.x = x
@@ -49,13 +50,16 @@ class CollisionCircle:
     def draw(self, win, cx, cy):
         pygame.draw.circle(win, (255, 0, 0), (int(self.x - cx), int(self.y - cy)), self.r)
 
+sword = get_img('images/sword.png')
+
 class SwordProjectile:
     def __init__(self, x, y, angle):
         self.x = x
         self.y = y
         self.speed = 400
         self.angle = angle
-        self.image = pygame.image.load('images/sword.png')
+        self.damage = 20
+        self.image = sword
         self.image = pygame.transform.scale(self.image, (64, 64))
         self.img_copy = pygame.transform.rotate(self.image, self.angle * 180 / math.pi - 90)
         self.dx, self.dy = math.cos(self.angle), math.sin(self.angle)
@@ -80,6 +84,64 @@ class SwordProjectile:
 
       # for circle in self.collision_circles:
       #     circle.draw(win, cx, cy)
+
+
+class Burn:
+    def __init__(self, target):
+        self.dps = 10
+        self.target = target
+        self.timer = Timer(10)
+
+    def get_damage(self, dt):
+        return self.dps * dt
+
+    def update(self, dt):
+        self.target.hp -= self.get_damage(dt)
+        self.timer.update(dt)
+
+        if self.timer.time <= 0:
+            self.target.debuffs.remove(self)
+
+
+poison = get_img('images/poison.png')
+class PoisonBubble:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.r = 64
+        self.timer = Timer(5)
+        self.target = None
+
+        self.online_timer = Timer(2)
+        self.online = False
+
+        self.image = poison
+
+    def update_online_timer(self, dt):
+        self.online_timer.update(dt)
+        if self.online_timer.time <= 0:
+            self.online = True
+
+    def hit(self, target):
+        self.target = target
+        self.target.stun()
+
+
+    def update(self, dt):
+        self.timer.update(dt)
+        if self.timer.time <= 0:
+            self.target.unstun()
+            return True
+
+        return False
+
+    def draw(self, win, cx, cy):
+        if not self.online:
+            pygame.draw.circle(win, (255, 0, 0), (int(self.x - cx), int(self.y - cy)), self.r, 2)
+        else:
+            win.blit(self.image, (self.x - cx - self.r, self.y - cy - self.r))
+
+
 
 
 
