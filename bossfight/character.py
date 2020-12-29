@@ -7,6 +7,9 @@ from useful_functions import get_tilemap_pos, get_world_pos
 from pathfinding_algs.bfs import bfs
 from timer import Timer
 from states import *
+from perk import *
+from pathfinding_algs.raymarching import *
+import os, sys
 
 class charge:
     def __init__(self, n):
@@ -23,6 +26,17 @@ class DummyCharacter:
         self.projectiles = projectiles
         self.state = state
         self.casting = casting
+
+    def deal_damage(self, skill):
+        if self.absorb_shield > 0:
+            self.absorb_shield -= skill.damage
+            if self.absorb_shield < 0:
+                self.absorb_shield = 0
+        else:
+            self.hp -= skill.damage
+            if self.hp < 0:
+                self.hp = 0
+
 
 class Character:
     def __init__(self, dummy):
@@ -46,13 +60,13 @@ class Character:
 
         self.angle = None
 
-
+        self.perk = CastingPerk()
 
         self.time = 0.8
         self.blinktime = 18
         self.freezetime = 60
         self.pyrotime = 5
-        self.shieldtime = 0.1
+        self.shieldtime = 26
 
         self.blinkcharge = charge(2)
 
@@ -67,6 +81,8 @@ class Character:
 
         self.timers = [self.skillcd, self.blinkcd, self.freezecd, self.pyrocd, self.freezetimer, self.firecd]
         self.casting = None
+
+        self.stunned = False
 
     def update_from_dummy(self, dummy):
         self.x = dummy.x
@@ -83,7 +99,7 @@ class Character:
         return DummyCharacter(self.x, self.y, self.OriginalHP, self.hp, self.absorb_shield, self.speed, self.projectiles, self.state, self.casting)
 
     def load_sprites(self):
-        self.ch_ss = pygame.image.load('animations/player_sheet.png')
+        self.ch_ss = pygame.image.load(os.path.join(sys.path[0], 'animations/player_sheet.png'))
         self.ch_ss = pygame.transform.scale(self.ch_ss, (32 * 4, 32 * 4))
         self.ch_ss = SpriteSheet(self.ch_ss, 4, 4)
 
@@ -168,57 +184,86 @@ class Character:
                 self.projectiles.append(self.casting)
                 self.casting = None
     def cast(self, Skill):
-        if self.skillcd.time == self.time and self.skillcd.done:
-            self.projectiles.append(Skill)
-            self.skillcd.done = False
+        if not self.stunned:
+            if self.skillcd.time == self.time and self.skillcd.done:
+                self.projectiles.append(Skill)
+                self.skillcd.done = False
 
     def cast_cd(self, Skill):
+        if not self.stunned:
+            if self.pyrocd.time == self.pyrotime and self.pyrocd.done:
+                self.casting = Skill
+                self.pyrocd.done = False
 
-        if self.pyrocd.time == self.pyrotime and self.pyrocd.done:
-            self.casting = Skill
-            self.pyrocd.done = False
-
-    def blink(self):
+    def blink(self, collision_tiles):
         if self.skillcd.time == self.time and self.skillcd.done and( (self.blinkcd.time == self.blinktime and self.blinkcd.done) or 0 < self.blinkcharge.n < 2):
-            self.x = self.x + math.cos(self.angle) * self.blinkrange
-            self.y = self.y + -math.sin(self.angle) * self.blinkrange
-            self.blinkcharge.n -= 1
+            old_X, old_Y = self.x, self.y
 
+            self.x, self.y = self.x + math.cos(self.angle) * 6, self.y + -math.sin(self.angle) * 6
+            r = dsttoscene(Vector2D(self.x, self.y), collision_tiles)
+
+            if r < 1:
+                self.x = old_X
+                self.y = old_Y
+            while r > 1 and math.sqrt(pow(old_X - self.x, 2) + pow(old_Y - self.y, 2)) <= self.blinkrange:
+                r = dsttoscene(Vector2D(self.x, self.y), collision_tiles)
+
+                self.x, self.y = self.x + math.cos(self.angle) * r, self.y + -math.sin(self.angle) * r
+
+
+            self.blinkcharge.n -= 1
+            self.unstun()
             self.skillcd.done = False
             self.blinkcd.done = False
 
 
     def freeze(self, object_list, boss):
-        if self.skillcd.time == self.time and self.skillcd.done and self.freezecd.time == self.freezetime and self.freezecd.done:
-            x, y = get_tilemap_pos(self.x, self.y)
-            path = bfs(self.freezerange, x, y, True, object_list)
-            bx, by = get_tilemap_pos(boss.x, boss.y)
-            for node in path:
-                if node.x == bx and node.y == by:
-                    boss.freeze_effect()
+        if not self.stunned:
+            if self.skillcd.time == self.time and self.skillcd.done and self.freezecd.time == self.freezetime and self.freezecd.done:
+                x, y = get_tilemap_pos(self.x, self.y)
+                path = bfs(self.freezerange, x, y, True, object_list)
+                bx, by = get_tilemap_pos(boss.x, boss.y)
+                for node in path:
+                    if node.x == bx and node.y == by:
+                        boss.freeze_effect()
 
-            self.skillcd.done = False
-            self.freezecd.done = False
+                self.skillcd.done = False
+                self.freezecd.done = False
 
     def freeze_effect(self):
         self.freezetimer.reset()
         self.speed *= 0.1
 
     def fire_shield(self):
-        if self.skillcd.time == self.time and self.skillcd.done and self.firecd.time == self.shieldtime and self.firecd.done:
-            self.absorb_shield += self.OriginalHP * 0.25
-            self.skillcd.done = False
-            self.firecd.done = False
+        if not self.stunned:
+            if self.skillcd.time == self.time and self.skillcd.done and self.firecd.time == self.shieldtime and self.firecd.done:
+                self.absorb_shield += self.OriginalHP * 0.25
+                self.skillcd.done = False
+                self.firecd.done = False
 
     def deal_damage(self, skill):
+        damage = skill.damage
+        if type(self.perk) == CastingPerk and self.casting is not None:
+            damage = self.perk.get_value(damage)
+
+
         if self.absorb_shield > 0:
-            self.absorb_shield -= skill.damage
+            self.absorb_shield -= damage
             if self.absorb_shield < 0:
                 self.absorb_shield = 0
         else:
-            self.hp -= skill.damage
+            self.hp -= damage
             if self.hp < 0:
                 self.hp = 0
+
+    def stun(self):
+        self.stunned = True
+        self.casting = None
+        self.speed = 0
+
+    def unstun(self):
+        self.stunned = False
+        self.speed = 100
 
 class Camera:
     def __init__(self, x, y):
