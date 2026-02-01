@@ -57,7 +57,7 @@ class Tilemap:
 
         for i, obj in sorted(enumerate(arr), reverse=True):
             if obj.collision:
-                collisonobj.append((obj.x, obj.y))
+                collisonobj.append((obj.x + 1, obj.y + 1))
 
 
         return arr, collisonobj
@@ -114,7 +114,7 @@ class Tilemap:
                 array[y].append(0)
 
         for object in coordinates:
-            array[object[1] - minY + 1][object[0] - minX + 1] = 1
+            array[object[1] - minY][object[0] - minX] = 1
 
         return array
 

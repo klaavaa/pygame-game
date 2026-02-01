@@ -4,7 +4,9 @@ from _thread import *
 from character import *
 from states import *
 import sys
-server = "192.168.0.11"
+import pygame
+
+server = "localhost"
 port = 12345
 pygame.init()
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,12 +36,11 @@ def threaded_client(conn, player):
 
     conn.send(pickle.dumps(True))
     conn.recv(8)
-
     while True:
         try:
-
-            conn.sendall(pickle.dumps([players[(player + 1) % 2], players[player].hp, players[player].absorb_shield, players[player].speed]))
-            data = pickle.loads(conn.recv(1024))
+            a = pickle.dumps([players[(player + 1) % 2], players[player].hp, players[player].absorb_shield, players[player].speed])
+            conn.sendall(a)
+            data = pickle.loads(conn.recv(2048))
             players[player] = data
 
                 #print(f'Received: {data}')

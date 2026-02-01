@@ -72,6 +72,20 @@ class SwordProjectile:
 
         self.collision_circles = [CollisionCircle(x, y, 5), CollisionCircle(x1, y1, 5), CollisionCircle(x2, y2, 5), CollisionCircle(x3, y3, 5)]
 
+    def newangle(self, angle):
+        self.angle = angle
+        self.img_copy = pygame.transform.rotate(self.image, self.angle * 180 / math.pi - 90)
+        self.dx, self.dy = math.cos(self.angle), math.sin(self.angle)
+        rect = self.img_copy.get_rect()
+        center = rect.center
+        x, y = self.x + center[0] + -self.dx, self.y + center[1] + self.dy
+        x1, y1 = self.x + center[0] + -self.dx * -10, self.y + center[1] + self.dy * -10
+        x2, y2 = self.x + center[0] + -self.dx * -20, self.y + center[1] + self.dy * -20
+        x3, y3 = self.x + center[0] + -self.dx * -30, self.y + center[1] + self.dy * -30
+
+        self.collision_circles = [CollisionCircle(x, y, 5), CollisionCircle(x1, y1, 5), CollisionCircle(x2, y2, 5),
+                                  CollisionCircle(x3, y3, 5)]
+
     def update(self, dt):
         self.x += self.dx * (self.speed * dt)
         self.y += -self.dy * (self.speed * dt)
@@ -96,7 +110,7 @@ class Burn:
         return self.dps * dt
 
     def update(self, dt):
-        self.target.hp -= self.get_damage(dt)
+        self.target.deal_damage(None, self.get_damage(dt))
         self.timer.update(dt)
 
         if self.timer.time <= 0:

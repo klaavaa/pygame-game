@@ -1,8 +1,16 @@
 
-from vector2d import Vector2D
+#from vector2d import Vector2D
 import math
 
-
+class Vector2D:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        
+    def __sub__(self, other):
+        return Vector2D(self.x - other.x, self.y - other.y)
+    def __add__(self, other):
+        return Vector2D(self.x + other.x, self.y + other.y)
 
 
 

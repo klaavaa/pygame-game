@@ -148,9 +148,10 @@ def update_boss(dt, c, boss):
            #if projectile.x <= 0 + cam.x or projectile.x >= SW + cam.x or projectile.y >= SH + cam.y or projectile.y <= 0 + cam.y:
            #    boss.projectile_list.pop(index)
            #    continue
-            if projectile.x < -200 or projectile.x > 2000 or projectile.y < -200 or projectile.y > 2000:
-                boss.projectile_list.pop(index)
-                continue
+            if boss.stage == StageStates.STAGE1:
+                if projectile.x < -200 or projectile.x > 2000 or projectile.y < -200 or projectile.y > 2000:
+                    boss.projectile_list.pop(index)
+                    continue
 
             if type(projectile) == SwordProjectile:
                 for circle in projectile.collision_circles:
@@ -202,11 +203,20 @@ def update_boss(dt, c, boss):
         if collision:
             c.x = dx
 
-        if get_tilemap_pos(dx, dy) != get_tilemap_pos(c.x, c.y):
-            boss.pf.stop = True
+        if boss.stage == StageStates.STAGE1:
+            if get_tilemap_pos(dx, dy) != get_tilemap_pos(c.x, c.y):
+                boss.pf.stop = True
 
-        if boss.pf.path is None:
-            boss.pf.pathfind(cx, cy, world.collision_map)
+            if boss.pf.path is None:
+                boss.pf.pathfind(cx, cy, world.collision_map)
+        elif boss.stage == StageStates.MIDSTAGE:
+            if boss.x != 10 * 64 and boss.y != 10 * 64 and (boss.finding_path or boss.pf.path is None):
+                boss.pf.pathfind(10, 10, world.collision_map)
+                boss.finding_path = False
+            elif boss.x == 10*64 and boss.y == 10*64:
+                boss.projectile_list.clear()
+                boss.stage = StageStates.STAGE2
+
 
 
         deltaX, deltaY = abs(boss.x + (boss.width / 2) - c.x + (c.width / 2)), abs(boss.y + (boss.height / 2) - c.y + (c.height / 2))
@@ -217,13 +227,16 @@ def update_boss(dt, c, boss):
 
         # BOSS SWORD CAST #
 
+        if boss.stage == StageStates.STAGE1:
+            if rng(20):
+                bossangle = -math.atan2((y + c.height / 2)  - (boss.y + boss.height / 2), (x + c.width / 2) - (boss.x + boss.width / 2))
+            else:
+                bossangle = -math.atan2((c.y + c.height / 2) - (boss.y + boss.height / 2), (c.x + c.width / 2) - (boss.x + boss.width / 2))
+            boss.attack(bossangle, c.x, c.y)
+        elif boss.stage == StageStates.STAGE2:
+            bossangle = boss.angle
 
-        if rng(20):
-            bossangle = -math.atan2((y + c.height / 2)  - (boss.y + boss.height / 2), (x + c.width / 2) - (boss.x + boss.width / 2))
-        else:
-            bossangle = -math.atan2((c.y + c.height / 2) - (boss.y + boss.height / 2), (c.x + c.width / 2) - (boss.x + boss.width / 2))
-
-        boss.attack(bossangle, c.x, c.y)
+            boss.attack(bossangle, c.x, c.y)
 
         if c.casting:
             c.casting.x = c.x + c.width / 2
@@ -395,7 +408,7 @@ def arena_game():
 
     while not n.request():
         font = pygame.font.SysFont('arial', 30)
-        text = font.render('Waiting for another player', 1, (255, 255, 255))
+        text = font.render('Waiting for another player', True, (255, 255, 255))
         win.blit(text, (350, 350))
         pygame.display.update()
         for event in pygame.event.get():
